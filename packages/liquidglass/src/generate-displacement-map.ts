@@ -4,7 +4,7 @@ export interface MapOptions {
   radius?: number;
   edgeSize?: number;
   intensity?: number;
-  distortion?: number;
+  specularWidth?: number;
 }
 
 const VERT = `attribute vec4 position; void main(){ gl_Position = position; }`;
@@ -13,9 +13,9 @@ const FRAG = `
 precision mediump float;
 uniform vec2 uRes;
 uniform float uRadius;
-uniform float uEdgeSize;
-uniform float uIntensity;
-uniform float uDistortion;
+uniform float uBorderSoftness;
+uniform float uSpecularWidth;
+uniform int uMode; // 0 = displacement, 1 = specular
 
 float sdRoundedBox(vec2 p, vec2 b, float r){
   r = min(r, min(b.x, b.y));
@@ -23,32 +23,36 @@ float sdRoundedBox(vec2 p, vec2 b, float r){
   return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
 }
 
-float getHeight(vec2 p) {
-    vec2 halfSize = uRes * 0.5 - 2.0;
-
-    // Aumenta o tamanho base do box ligeiramente proporcinal ao edge
-    halfSize += uEdgeSize * 0.2;
-
-    float d = sdRoundedBox(p, halfSize, uRadius);
-
-    float borderSoftness = uEdgeSize * uIntensity;
-    d = max(d, -borderSoftness);
-    return smoothstep(0.0, -borderSoftness, d);
+vec3 calcNormal(vec2 p, vec2 b, float r){
+  const float e = 1.0;
+  vec2 h = vec2(e, 0.0);
+  return normalize(vec3(
+    sdRoundedBox(p+h.xy, b, r) - sdRoundedBox(p-h.xy, b, r),
+    sdRoundedBox(p+h.yx, b, r) - sdRoundedBox(p-h.yx, b, r),
+    -e * 2.0
+  ));
 }
 
 void main(){
   vec2 p = gl_FragCoord.xy - uRes * 0.5;
-  p.y = -p.y;
+  vec2 halfSize = uRes * 0.5 - 1.0;
+  float d = sdRoundedBox(p, halfSize, uRadius);
 
-  // --- Displacement Map ---
-  const vec2 e = vec2(1.0, 0.0);
-  float hx = getHeight(p + e.xy) - getHeight(p - e.xy);
-  float hy = getHeight(p + e.yx) - getHeight(p - e.yx);
+  if(d > 0.0){ gl_FragColor = vec4(0.0); return; }
 
-  vec2 normal = vec2(-hx, -hy) * uDistortion;
-  vec2 color = clamp(normal * 0.5 + 0.5, 0.0, 1.0);
-
-  gl_FragColor = vec4(color.x, color.y, 0.5, 1.0);
+  if(uMode == 0){
+    vec3 n = calcNormal(p, halfSize, uRadius);
+    vec3 nc = n * 0.5 + 0.5;
+    float border = smoothstep(-uBorderSoftness, 0.0, d);
+    vec3 flat_ = vec3(0.5, 0.5, 1.0);
+    gl_FragColor = vec4(mix(flat_, nc, border), 1.0);
+  } else {
+    float rim = smoothstep(-uSpecularWidth - 2.0, -uSpecularWidth, d)
+              * (1.0 - smoothstep(-2.0, 0.0, d));
+    float glow = smoothstep(-uBorderSoftness, 0.0, d) * 0.1;
+    float s = clamp(rim + glow, 0.0, 1.0);
+    gl_FragColor = vec4(vec3(s), s);
+  }
 }
 `;
 
@@ -86,30 +90,51 @@ function getGL() {
   return _cachedProgram;
 }
 
-function render(width: number, height: number, radius: number, edgeSize: number, intensity: number, distortion: number): string {
+function render(
+  width: number,
+  height: number,
+  radius: number,
+  borderSoftness: number,
+  specularWidth: number,
+  mode: number,
+): string {
   const { gl, program, canvas } = getGL();
   canvas.width = width;
   canvas.height = height;
   gl.viewport(0, 0, width, height);
-  gl.clearColor(0.5, 0.5, 0.5, 1.0);
+  gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.useProgram(program);
 
   gl.uniform2f(gl.getUniformLocation(program, "uRes"), width, height);
   gl.uniform1f(gl.getUniformLocation(program, "uRadius"), radius);
-  gl.uniform1f(gl.getUniformLocation(program, "uEdgeSize"), edgeSize);
-  gl.uniform1f(gl.getUniformLocation(program, "uIntensity"), intensity);
-  gl.uniform1f(gl.getUniformLocation(program, "uDistortion"), distortion);
+  gl.uniform1f(gl.getUniformLocation(program, "uBorderSoftness"), borderSoftness);
+  gl.uniform1f(gl.getUniformLocation(program, "uSpecularWidth"), specularWidth);
+  gl.uniform1i(gl.getUniformLocation(program, "uMode"), mode);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   return canvas.toDataURL("image/png");
 }
 
-export function generateGlassMaps(opts: MapOptions): { displacement: string } {
-  const { width, height, radius = 60, edgeSize = 40, intensity = 1.0, distortion = 15.0 } = opts;
+export function generateGlassMaps(opts: MapOptions): {
+  displacement: string;
+  specular: string;
+} {
+  const {
+    width,
+    height,
+    radius = 60,
+    edgeSize = 30,
+    intensity = 0.7,
+    specularWidth = 0.02,
+  } = opts;
+
   const r = Math.min(radius, width / 2, height / 2);
+  const borderSoftness = edgeSize * intensity;
+  const specPx = specularWidth * Math.min(width, height);
 
   return {
-    displacement: render(width, height, r, edgeSize, intensity, distortion),
+    displacement: render(width, height, r, borderSoftness, specPx, 0),
+    specular: render(width, height, r, borderSoftness, specPx, 1),
   };
 }

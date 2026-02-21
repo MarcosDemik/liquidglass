@@ -4,7 +4,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/@marcosdemik/liquidglass.svg)](https://www.npmjs.com/package/@marcosdemik/liquidglass)
 [![license](https://img.shields.io/npm/l/@marcosdemik/liquidglass.svg)](https://github.com/MarcosDemik/liquidglass/blob/main/LICENSE)
 
-A React component that creates a **Liquid Glass** UI effect - glassmorphism with real-time refraction, chromatic aberration, and smooth GSAP animations.
+A React component that creates a **Liquid Glass** UI effect with real-time refraction, specular highlights, and smooth GSAP animations.
 
 Built with SVG filters and WebGL displacement maps.
 
@@ -32,7 +32,7 @@ import { LiquidGlassButton } from "@marcosdemik/liquidglass";
 
 function App() {
   return (
-    <LiquidGlassButton width={320} height={60} radius={60} chroma={3}>
+    <LiquidGlassButton width={320} height={60} radius={60}>
       Click me
     </LiquidGlassButton>
   );
@@ -58,30 +58,28 @@ The component includes a `"use client"` directive, so it works out of the box wi
 | `width` | `number` | `300` | Button width in pixels |
 | `height` | `number` | `56` | Button height in pixels |
 | `radius` | `number` | `60` | Border radius in pixels |
-| `glassColor` | `string` | `"rgba(255,255,255,0.05)"` | Background tint color of the glass |
+| `glassColor` | `string` | `"transparent"` | Background tint color of the glass |
 
 ### Glass Effect
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `displacement` | `number` | `35` | How much the background refracts (feDisplacementMap scale) |
-| `blur` | `number` | `2` | Gaussian blur applied to the background |
-| `chroma` | `number` | `3` | Chromatic aberration strength (RGB channel offset) |
-| `saturation` | `number` | `1.2` | Saturation boost on the final result (1 = normal) |
-| `distortion` | `number` | `15` | Normal map distortion scale in the shader |
-| `intensity` | `number` | `1.0` | Refraction intensity at the glass edge |
-| `edgeSize` | `number` | `40` | Thickness of the glass edge refraction zone |
-| `smoothness` | `number` | `1.0` | Blur on the displacement map (softens transitions) |
+| `displacement` | `number` | `55` | How much the background refracts (feDisplacementMap scale) |
+| `blur` | `number` | `1` | Gaussian blur applied to the background |
+| `saturation` | `number` | `150` | Color saturation of the refracted result (feColorMatrix saturate value) |
+| `brightness` | `number` | `1.1` | Brightness boost on the backdrop-filter (1 = normal) |
+| `intensity` | `number` | `0.7` | Refraction intensity at the glass edge (0-1) |
+| `edgeSize` | `number` | `30` | Thickness of the glass edge refraction zone in pixels |
+| `specularWidth` | `number` | `0.02` | Specular rim thickness relative to the smallest dimension (0-1) |
 
 ### Hover Animation
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `hoverScale` | `number` | `1.05` | Scale multiplier on hover |
-| `hoverDisplacement` | `number` | `65` | Displacement scale on hover |
+| `hoverScale` | `number` | `1.08` | Scale multiplier on hover |
+| `hoverDisplacement` | `number` | `125` | Displacement scale on hover |
 | `hoverBlur` | `number` | `4` | Blur amount on hover |
-| `hoverChromaMultiplier` | `number` | `2.5` | Multiplier applied to `chroma` on hover |
-| `hoverDuration` | `number` | `0.4` | Duration of hover animation in seconds |
+| `hoverDuration` | `number` | `0.25` | Duration of hover animation in seconds |
 | `disableAnimation` | `boolean` | `false` | Disable all GSAP animations |
 
 ### Standard HTML
@@ -112,17 +110,17 @@ All standard `<button>` HTML attributes (`onClick`, `disabled`, `aria-label`, et
 </LiquidGlassButton>
 ```
 
-### High Distortion
+### High Refraction
 
 ```tsx
 <LiquidGlassButton
   width={320}
   height={60}
   radius={60}
-  displacement={60}
-  distortion={30}
-  chroma={8}
-  intensity={2}
+  displacement={100}
+  intensity={1}
+  edgeSize={50}
+  saturation={200}
 >
   Distorted
 </LiquidGlassButton>
@@ -135,11 +133,11 @@ All standard `<button>` HTML attributes (`onClick`, `disabled`, `aria-label`, et
   width={320}
   height={60}
   radius={60}
-  displacement={15}
+  displacement={25}
   blur={1}
-  distortion={5}
-  chroma={1}
-  smoothness={3}
+  intensity={0.4}
+  edgeSize={15}
+  saturation={120}
 >
   Subtle
 </LiquidGlassButton>
@@ -165,11 +163,10 @@ All standard `<button>` HTML attributes (`onClick`, `disabled`, `aria-label`, et
   width={320}
   height={60}
   radius={60}
-  hoverScale={1.1}
-  hoverDisplacement={100}
+  hoverScale={1.12}
+  hoverDisplacement={150}
   hoverBlur={6}
-  hoverChromaMultiplier={4}
-  hoverDuration={0.6}
+  hoverDuration={0.4}
 >
   Strong Hover
 </LiquidGlassButton>
@@ -192,11 +189,27 @@ All standard `<button>` HTML attributes (`onClick`, `disabled`, `aria-label`, et
 
 The effect is built from three layers:
 
-1. **WebGL Displacement Map** - A GLSL fragment shader computes a displacement map from a signed distance field (SDF) of a rounded rectangle. The shader runs on an offscreen canvas and outputs a PNG data URL. The WebGL context is cached as a singleton for performance.
+1. **WebGL Displacement + Specular Maps** - A GLSL fragment shader computes a displacement map and a specular highlight map from a signed distance field (SDF) of a rounded rectangle. 3D surface normals are derived from the SDF to create realistic light refraction at the edges. Both maps are rendered on an offscreen canvas and output as PNG data URLs. The WebGL context is cached as a singleton.
 
-2. **SVG Filter Chain** - The displacement map feeds into an SVG `<filter>` that applies per-channel (R/G/B) `feDisplacementMap` at slightly different scales, producing chromatic aberration. Channels are recombined with `feBlend mode="screen"`.
+2. **SVG Filter Chain** - The displacement map feeds into an SVG `<filter>` with `feDisplacementMap` for background refraction, `feColorMatrix` for saturation control, and `feBlend` to composite the specular highlight layer on top. A `brightness()` function in the backdrop-filter adds a subtle glow.
 
-3. **GSAP Animations** - Pointer events drive GSAP tweens that animate displacement scale, blur, chromatic separation, and button scale. Filter attributes are mutated directly each frame for maximum performance.
+3. **GSAP Animations** - Pointer events drive GSAP tweens that animate displacement scale, blur, and button scale. Filter attributes are mutated directly each frame for maximum performance.
+
+## Migration from v1.x
+
+v2.0.0 replaced the chromatic aberration pipeline with a specular highlight pipeline for a more realistic glass effect. The following props were removed:
+
+- `chroma` - removed (no more chromatic aberration)
+- `distortion` - removed (shader normals are now computed from the SDF)
+- `smoothness` - removed (displacement map blur is no longer needed)
+- `hoverChromaMultiplier` - removed
+
+New props added:
+
+- `brightness` - controls backdrop brightness (default `1.1`)
+- `specularWidth` - controls the specular rim thickness (default `0.02`)
+
+Changed defaults: `displacement` (35 -> 55), `blur` (2 -> 1), `saturation` (1.2 -> 150), `hoverScale` (1.05 -> 1.08), `hoverDisplacement` (65 -> 125), `hoverDuration` (0.4 -> 0.25), `glassColor` ("rgba(255,255,255,0.05)" -> "transparent").
 
 ## Visibility Note
 
