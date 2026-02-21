@@ -16,7 +16,7 @@ const CONFIG = {
   },
 } as const;
 
-const PADDING = 60;
+const PADDING_PCT = 50;
 
 export interface LiquidGlassButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   width?: number;
@@ -116,32 +116,22 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
       };
     }, [buttonRef, maps, chroma]);
 
-    const effectiveRadius = Math.min(radius, width / 2, height / 2);
-
     return (
       <>
         <button
           ref={buttonRef}
-          className={cn("relative shadow-2xl shadow-black/20 cursor-pointer", className)}
-          style={{ width, height, borderRadius: radius, border: "none", background: glassColor, isolation: "isolate", ...style }}
+          className={cn("relative overflow-hidden shadow-2xl shadow-black/20 cursor-pointer", className)}
+          style={{ width, height, borderRadius: radius, border: "none", background: glassColor, ...style }}
           {...props}
         >
           <div
             className="absolute inset-0 z-0"
             style={{
-              borderRadius: effectiveRadius,
-              overflow: "clip",
+              borderRadius: "inherit",
+              backdropFilter: `url(#${filterId})`,
+              WebkitBackdropFilter: `url(#${filterId})`
             }}
-          >
-            <div
-              className="absolute"
-              style={{
-                top: -PADDING, left: -PADDING, right: -PADDING, bottom: -PADDING,
-                backdropFilter: `url(#${filterId})`,
-                WebkitBackdropFilter: `url(#${filterId})`
-              }}
-            />
-          </div>
+          />
           <div className="absolute inset-0 z-10 flex items-center justify-center font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.0) 100%)", borderRadius: "inherit" }}>
             {children}
           </div>
@@ -149,12 +139,12 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
 
         <svg style={{ position: "absolute", width: 0, height: 0, pointerEvents: "none" }} aria-hidden="true">
           <defs>
-            <filter id={filterId} x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">
+            <filter id={filterId} x={`-${PADDING_PCT}%`} y={`-${PADDING_PCT}%`} width={`${100 + PADDING_PCT * 2}%`} height={`${100 + PADDING_PCT * 2}%`} colorInterpolationFilters="sRGB">
               <feGaussianBlur ref={blurRef} in="SourceGraphic" stdDeviation={CONFIG.initial.blur} result="blurred_bg" edgeMode="duplicate" />
 
               {maps && (
                 <>
-                  <feImage href={maps.displacement} result="disp_map" x={PADDING} y={PADDING} width={width} height={height} preserveAspectRatio="none" />
+                  <feImage href={maps.displacement} result="disp_map" x={`${PADDING_PCT}%`} y={`${PADDING_PCT}%`} width={`${100}%`} height={`${100}%`} preserveAspectRatio="none" />
 
                   <feGaussianBlur in="disp_map" stdDeviation={smoothness} result="disp_blurred" edgeMode="duplicate" />
 
