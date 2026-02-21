@@ -116,22 +116,32 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
       };
     }, [buttonRef, maps, chroma]);
 
+    const effectiveRadius = Math.min(radius, width / 2, height / 2);
+
     return (
       <>
         <button
           ref={buttonRef}
-          className={cn("relative overflow-hidden shadow-2xl shadow-black/20 cursor-pointer", className)}
-          style={{ width, height, borderRadius: radius, WebkitMaskImage: "-webkit-radial-gradient(white, black)", border: "none", background: glassColor, ...style }}
+          className={cn("relative shadow-2xl shadow-black/20 cursor-pointer", className)}
+          style={{ width, height, borderRadius: radius, border: "none", background: glassColor, isolation: "isolate", ...style }}
           {...props}
         >
           <div
-            className="absolute z-0"
+            className="absolute inset-0 z-0"
             style={{
-              top: -PADDING, left: -PADDING, right: -PADDING, bottom: -PADDING,
-              backdropFilter: `url(#${filterId})`,
-              WebkitBackdropFilter: `url(#${filterId})`
+              borderRadius: effectiveRadius,
+              overflow: "clip",
             }}
-          />
+          >
+            <div
+              className="absolute"
+              style={{
+                top: -PADDING, left: -PADDING, right: -PADDING, bottom: -PADDING,
+                backdropFilter: `url(#${filterId})`,
+                WebkitBackdropFilter: `url(#${filterId})`
+              }}
+            />
+          </div>
           <div className="absolute inset-0 z-10 flex items-center justify-center font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.0) 100%)", borderRadius: "inherit" }}>
             {children}
           </div>
