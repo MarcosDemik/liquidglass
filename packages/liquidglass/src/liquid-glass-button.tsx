@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useId, forwardRef } from "react";
 import gsap from "gsap";
 import { cn } from "./utils";
-import { generateGlassMaps } from "./generate-displacement-map";
+import { generateGlassMaps, getCachedGlassMaps, revokeGlassMaps } from "./generate-displacement-map";
 
 export interface LiquidGlassButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   /** Button width in px */
@@ -36,6 +36,8 @@ export interface LiquidGlassButtonProps extends React.ButtonHTMLAttributes<HTMLB
   hoverDuration?: number;
   /** Disable all GSAP animations */
   disableAnimation?: boolean;
+  /** Supersampling quality for the displacement map (default 2, higher = smoother) */
+  quality?: number;
 }
 
 export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButtonProps>(
@@ -57,6 +59,7 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
     hoverBlur = 4,
     hoverDuration = 0.25,
     disableAnimation = false,
+    quality = 2,
     ...props
   }, ref) {
     const internalRef = useRef<HTMLButtonElement>(null);
@@ -67,29 +70,32 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
 
     const filterId = "lg" + useId().replace(/:/g, "");
 
-    const [maps, setMaps] = useState<ReturnType<typeof generateGlassMaps> | null>(null);
+    const mapOpts = { width, height, radius, edgeSize, intensity, specularWidth, quality };
+    const [maps, setMaps] = useState<{ displacement: string; specular: string } | null>(
+      () => getCachedGlassMaps(mapOpts),
+    );
 
     useEffect(() => {
+      // If already have maps from cache, skip
+      const cached = getCachedGlassMaps(mapOpts);
+      if (cached) {
+        setMaps(cached);
+        return;
+      }
+
       let cancelled = false;
-      const m = generateGlassMaps({ width, height, radius, edgeSize, intensity, specularWidth });
-
-      // Pre-decode both PNGs
-      let loaded = 0;
-      const onLoad = () => {
-        loaded++;
-        if (loaded === 2 && !cancelled) setMaps(m);
-      };
-
-      const img1 = new Image();
-      img1.onload = onLoad;
-      img1.src = m.displacement;
-
-      const img2 = new Image();
-      img2.onload = onLoad;
-      img2.src = m.specular;
+      generateGlassMaps(mapOpts).then((m) => {
+        if (!cancelled) setMaps(m);
+      });
 
       return () => { cancelled = true; };
-    }, [width, height, radius, edgeSize, intensity, specularWidth]);
+    }, [width, height, radius, edgeSize, intensity, specularWidth, quality]);
+
+    useEffect(() => {
+      return () => {
+        if (maps) revokeGlassMaps(maps);
+      };
+    }, [maps]);
 
     useEffect(() => {
       const button = buttonRef.current;

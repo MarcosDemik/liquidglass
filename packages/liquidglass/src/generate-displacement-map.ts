@@ -5,12 +5,14 @@ export interface MapOptions {
   edgeSize?: number;
   intensity?: number;
   specularWidth?: number;
+  /** Supersampling multiplier for the displacement map (default: 2). Higher = smoother gradients. */
+  quality?: number;
 }
 
 const VERT = `attribute vec4 position; void main(){ gl_Position = position; }`;
 
 const FRAG = `
-precision mediump float;
+precision highp float;
 uniform vec2 uRes;
 uniform float uRadius;
 uniform float uBorderSoftness;
@@ -24,7 +26,7 @@ float sdRoundedBox(vec2 p, vec2 b, float r){
 }
 
 vec3 calcNormal(vec2 p, vec2 b, float r){
-  const float e = 1.0;
+  float e = max(0.5, min(b.x, b.y) * 0.01);
   vec2 h = vec2(e, 0.0);
   return normalize(vec3(
     sdRoundedBox(p+h.xy, b, r) - sdRoundedBox(p-h.xy, b, r),
@@ -90,14 +92,26 @@ function getGL() {
   return _cachedProgram;
 }
 
-function render(
+// ── Cache ──────────────────────────────────────────────────────
+
+const _mapCache = new Map<string, { displacement: string; specular: string }>();
+
+function cacheKey(
+  w: number, h: number, r: number, bs: number, sw: number,
+): string {
+  return `${w}|${h}|${r}|${bs}|${sw}`;
+}
+
+// ── Render ─────────────────────────────────────────────────────
+
+function renderToBlob(
   width: number,
   height: number,
   radius: number,
   borderSoftness: number,
   specularWidth: number,
   mode: number,
-): string {
+): Promise<string> {
   const { gl, program, canvas } = getGL();
   canvas.width = width;
   canvas.height = height;
@@ -113,13 +127,20 @@ function render(
   gl.uniform1i(gl.getUniformLocation(program, "uMode"), mode);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  return canvas.toDataURL("image/png");
+
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      resolve(URL.createObjectURL(blob!));
+    }, "image/png");
+  });
 }
 
-export function generateGlassMaps(opts: MapOptions): {
+// ── Public API ─────────────────────────────────────────────────
+
+export async function generateGlassMaps(opts: MapOptions): Promise<{
   displacement: string;
   specular: string;
-} {
+}> {
   const {
     width,
     height,
@@ -127,14 +148,54 @@ export function generateGlassMaps(opts: MapOptions): {
     edgeSize = 30,
     intensity = 0.7,
     specularWidth = 0.02,
+    quality = 2,
   } = opts;
 
-  const r = Math.min(radius, width / 2, height / 2);
-  const borderSoftness = edgeSize * intensity;
-  const specPx = specularWidth * Math.min(width, height);
+  const scale = Math.max(1, Math.round(quality));
+  const rw = width * scale;
+  const rh = height * scale;
 
-  return {
-    displacement: render(width, height, r, borderSoftness, specPx, 0),
-    specular: render(width, height, r, borderSoftness, specPx, 1),
-  };
+  const r = Math.min(radius * scale, rw / 2, rh / 2);
+  const borderSoftness = edgeSize * intensity * scale;
+  const specPx = specularWidth * Math.min(rw, rh);
+
+  const key = cacheKey(rw, rh, r, borderSoftness, specPx);
+  const cached = _mapCache.get(key);
+  if (cached) return cached;
+
+  const [displacement, specular] = await Promise.all([
+    renderToBlob(rw, rh, r, borderSoftness, specPx, 0),
+    renderToBlob(rw, rh, r, borderSoftness, specPx, 1),
+  ]);
+
+  const result = { displacement, specular };
+  _mapCache.set(key, result);
+  return result;
+}
+
+export function getCachedGlassMaps(opts: MapOptions): { displacement: string; specular: string } | null {
+  const {
+    width,
+    height,
+    radius = 60,
+    edgeSize = 30,
+    intensity = 0.7,
+    specularWidth = 0.02,
+    quality = 2,
+  } = opts;
+
+  const scale = Math.max(1, Math.round(quality));
+  const rw = width * scale;
+  const rh = height * scale;
+
+  const r = Math.min(radius * scale, rw / 2, rh / 2);
+  const borderSoftness = edgeSize * intensity * scale;
+  const specPx = specularWidth * Math.min(rw, rh);
+
+  return _mapCache.get(cacheKey(rw, rh, r, borderSoftness, specPx)) ?? null;
+}
+
+export function revokeGlassMaps(maps: { displacement: string; specular: string }) {
+  URL.revokeObjectURL(maps.displacement);
+  URL.revokeObjectURL(maps.specular);
 }
