@@ -119,15 +119,15 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
         <button
           ref={buttonRef}
           className={cn("relative overflow-hidden shadow-2xl shadow-black/20 cursor-pointer", className)}
-          style={{ width, height, borderRadius: radius, border: "none", background: glassColor, ...style }}
+          style={{ width, height, borderRadius: radius, border: "none", background: glassColor, visibility: maps ? "visible" : "hidden", ...style }}
           {...props}
         >
           <div
             className="absolute inset-0 z-0"
             style={{
               borderRadius: "inherit",
-              backdropFilter: maps ? `url(#${filterId})` : `blur(${CONFIG.initial.blur}px)`,
-              WebkitBackdropFilter: maps ? `url(#${filterId})` : `blur(${CONFIG.initial.blur}px)`
+              backdropFilter: `url(#${filterId})`,
+              WebkitBackdropFilter: `url(#${filterId})`
             }}
           />
           <div className="absolute inset-0 z-10 flex items-center justify-center font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.0) 100%)", borderRadius: "inherit" }}>
