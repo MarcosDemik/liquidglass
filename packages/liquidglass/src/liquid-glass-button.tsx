@@ -121,7 +121,7 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
         <button
           ref={buttonRef}
           className={cn("relative overflow-hidden shadow-2xl shadow-black/20 cursor-pointer", className)}
-          style={{ width, height, borderRadius: radius, border: "none", background: glassColor, ...style }}
+          style={{ width, height, borderRadius: radius, clipPath: `inset(0 round ${Math.min(radius, width / 2, height / 2)}px)`, border: "none", background: glassColor, ...style }}
           {...props}
         >
           <div
