@@ -1,6 +1,6 @@
 {
   "name": "@marcosdemik/liquidglass",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Liquid Glass UI effect for React - glassmorphism refraction with SVG filters, WebGL and GSAP animations",
   "author": "Marcos Demik <marcosdemik>",
   "license": "MIT",

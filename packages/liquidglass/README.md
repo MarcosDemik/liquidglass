@@ -71,6 +71,7 @@ The component includes a `"use client"` directive, so it works out of the box wi
 | `intensity` | `number` | `0.7` | Refraction intensity at the glass edge (0-1) |
 | `edgeSize` | `number` | `30` | Thickness of the glass edge refraction zone in pixels |
 | `specularWidth` | `number` | `0.02` | Specular rim thickness relative to the smallest dimension (0-1) |
+| `quality` | `number` | `2` | Supersampling multiplier for the displacement map (higher = smoother gradients) |
 
 ### Hover Animation
 
@@ -189,7 +190,7 @@ All standard `<button>` HTML attributes (`onClick`, `disabled`, `aria-label`, et
 
 The effect is built from three layers:
 
-1. **WebGL Displacement + Specular Maps** - A GLSL fragment shader computes a displacement map and a specular highlight map from a signed distance field (SDF) of a rounded rectangle. 3D surface normals are derived from the SDF to create realistic light refraction at the edges. Both maps are rendered on an offscreen canvas and output as PNG data URLs. The WebGL context is cached as a singleton.
+1. **WebGL Displacement + Specular Maps** - A GLSL fragment shader (highp precision) computes a displacement map and a specular highlight map from a signed distance field (SDF) of a rounded rectangle. 3D surface normals are derived from the SDF to create realistic light refraction at the edges. Maps are rendered at `quality`x resolution (default 2x) for smoother gradients, output as Blob URLs via `toBlob()`, and cached by parameters so multiple instances with the same props share a single set of maps.
 
 2. **SVG Filter Chain** - The displacement map feeds into an SVG `<filter>` with `feDisplacementMap` for background refraction, `feColorMatrix` for saturation control, and `feBlend` to composite the specular highlight layer on top. A `brightness()` function in the backdrop-filter adds a subtle glow.
 
@@ -208,6 +209,7 @@ New props added:
 
 - `brightness` - controls backdrop brightness (default `1.1`)
 - `specularWidth` - controls the specular rim thickness (default `0.02`)
+- `quality` - supersampling multiplier for smoother displacement maps (default `2`)
 
 Changed defaults: `displacement` (35 -> 55), `blur` (2 -> 1), `saturation` (1.2 -> 150), `hoverScale` (1.05 -> 1.08), `hoverDisplacement` (65 -> 125), `hoverDuration` (0.4 -> 0.25), `glassColor` ("rgba(255,255,255,0.05)" -> "transparent").
 
