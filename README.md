@@ -1,6 +1,6 @@
 # Liquid Glass
 
-A React component that creates a stunning **Liquid Glass** UI effect — glassmorphism with real-time refraction, chromatic aberration, and smooth GSAP animations.
+A React component that creates a stunning **Liquid Glass** UI effect - glassmorphism with real-time refraction, chromatic aberration, and smooth GSAP animations.
 
 Built with SVG filters and WebGL displacement maps.
 
@@ -37,9 +37,9 @@ function App() {
 | `distortion` | `number` | `15.0` | Normal map distortion scale |
 | `chroma` | `number` | `3` | Chromatic aberration strength (RGB channel offset) |
 | `glassColor` | `string` | `"rgba(255,255,255,0.05)"` | Background tint color of the glass |
-| `className` | `string` | — | Additional CSS classes |
-| `style` | `CSSProperties` | — | Inline styles merged onto the button |
-| `ref` | `Ref<HTMLButtonElement>` | — | Forwarded ref to the underlying `<button>` |
+| `className` | `string` | - | Additional CSS classes |
+| `style` | `CSSProperties` | - | Inline styles merged onto the button |
+| `ref` | `Ref<HTMLButtonElement>` | - | Forwarded ref to the underlying `<button>` |
 
 All standard `<button>` HTML attributes (`onClick`, `disabled`, `aria-label`, etc.) are also supported.
 
@@ -87,16 +87,16 @@ All standard `<button>` HTML attributes (`onClick`, `disabled`, `aria-label`, et
 
 ## How It Works
 
-1. **WebGL Displacement Map** — A GLSL fragment shader computes a displacement map from a signed distance field (SDF) of a rounded rectangle. The WebGL context is cached as a singleton for performance.
+1. **WebGL Displacement Map** - A GLSL fragment shader computes a displacement map from a signed distance field (SDF) of a rounded rectangle. The WebGL context is cached as a singleton for performance.
 
-2. **SVG Filter Chain** — The displacement map feeds into an SVG `<filter>` that applies per-channel (R/G/B) `feDisplacementMap` at slightly different scales, producing chromatic aberration.
+2. **SVG Filter Chain** - The displacement map feeds into an SVG `<filter>` that applies per-channel (R/G/B) `feDisplacementMap` at slightly different scales, producing chromatic aberration.
 
-3. **GSAP Animations** — Pointer events drive GSAP tweens that animate displacement scale, blur, chromatic separation, and button scale on each frame.
+3. **GSAP Animations** - Pointer events drive GSAP tweens that animate displacement scale, blur, chromatic separation, and button scale on each frame.
 
 ## Accessibility
 
-- Respects `prefers-reduced-motion` — animations are automatically disabled
-- Semantic `<button>` element — fully keyboard navigable
+- Respects `prefers-reduced-motion` - animations are automatically disabled
+- Semantic `<button>` element - fully keyboard navigable
 - Supports all ARIA attributes
 
 ## Running the Demo

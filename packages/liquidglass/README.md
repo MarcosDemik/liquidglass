@@ -1,6 +1,6 @@
 # @marcosdemik/liquidglass
 
-A React component that creates a stunning **Liquid Glass** UI effect — glassmorphism with real-time refraction, chromatic aberration, and smooth GSAP animations.
+A React component that creates a stunning **Liquid Glass** UI effect - glassmorphism with real-time refraction, chromatic aberration, and smooth GSAP animations.
 
 Built with SVG filters and WebGL displacement maps.
 
@@ -39,9 +39,9 @@ function App() {
 | `distortion` | `number` | `15.0` | Normal map distortion scale |
 | `chroma` | `number` | `3` | Chromatic aberration strength (RGB channel offset) |
 | `glassColor` | `string` | `"rgba(255,255,255,0.05)"` | Background tint color of the glass |
-| `className` | `string` | — | Additional CSS classes for the button |
-| `style` | `CSSProperties` | — | Inline styles merged onto the button |
-| `ref` | `Ref<HTMLButtonElement>` | — | Forwarded ref to the underlying `<button>` |
+| `className` | `string` | - | Additional CSS classes for the button |
+| `style` | `CSSProperties` | - | Inline styles merged onto the button |
+| `ref` | `Ref<HTMLButtonElement>` | - | Forwarded ref to the underlying `<button>` |
 
 All standard `<button>` HTML attributes (`onClick`, `disabled`, `aria-label`, etc.) are also supported.
 
@@ -99,16 +99,16 @@ All standard `<button>` HTML attributes (`onClick`, `disabled`, `aria-label`, et
 
 The effect is built from three layers:
 
-1. **WebGL Displacement Map** — A GLSL fragment shader computes a displacement map from a signed distance field (SDF) of a rounded rectangle. The shader runs on an offscreen canvas and outputs a PNG data URL. The WebGL context is cached as a singleton for performance.
+1. **WebGL Displacement Map** - A GLSL fragment shader computes a displacement map from a signed distance field (SDF) of a rounded rectangle. The shader runs on an offscreen canvas and outputs a PNG data URL. The WebGL context is cached as a singleton for performance.
 
-2. **SVG Filter Chain** — The displacement map feeds into an SVG `<filter>` that applies per-channel (R/G/B) `feDisplacementMap` at slightly different scales, producing chromatic aberration. Channels are recombined with `feBlend mode="screen"`. A padding constant expands the backdrop-filter area beyond the button bounds to prevent edge artifacts.
+2. **SVG Filter Chain** - The displacement map feeds into an SVG `<filter>` that applies per-channel (R/G/B) `feDisplacementMap` at slightly different scales, producing chromatic aberration. Channels are recombined with `feBlend mode="screen"`. A padding constant expands the backdrop-filter area beyond the button bounds to prevent edge artifacts.
 
-3. **GSAP Animations** — Pointer events drive GSAP tweens that animate displacement scale, blur, chromatic separation, and button scale. The `sync()` callback directly mutates SVG filter element attributes on each frame for maximum performance.
+3. **GSAP Animations** - Pointer events drive GSAP tweens that animate displacement scale, blur, chromatic separation, and button scale. The `sync()` callback directly mutates SVG filter element attributes on each frame for maximum performance.
 
 ## Accessibility
 
-- Respects `prefers-reduced-motion` — all animations are automatically disabled when the user has reduced motion enabled
-- Uses semantic `<button>` element — fully keyboard navigable
+- Respects `prefers-reduced-motion` - all animations are automatically disabled when the user has reduced motion enabled
+- Uses semantic `<button>` element - fully keyboard navigable
 - Supports all ARIA attributes via standard button props
 
 ## Requirements
