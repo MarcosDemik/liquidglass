@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useId, forwardRef } from "react";
+import React, { useRef, useEffect, useState, useId, forwardRef } from "react";
 import gsap from "gsap";
 import { cn } from "./utils";
 import { generateGlassMaps } from "./generate-displacement-map";
@@ -42,10 +42,19 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
 
     const filterId = "lg" + useId().replace(/:/g, "");
 
-    const maps = useMemo(
-      () => typeof document !== "undefined" ? generateGlassMaps({ width, height, radius, edgeSize, intensity, distortion }) : null,
-      [width, height, radius, edgeSize, intensity, distortion]
-    );
+    const [maps, setMaps] = useState<ReturnType<typeof generateGlassMaps> | null>(null);
+
+    // Generate displacement maps + pre-decode the PNG data URL
+    useEffect(() => {
+      let cancelled = false;
+      const m = generateGlassMaps({ width, height, radius, edgeSize, intensity, distortion });
+      const img = new Image();
+      img.onload = () => {
+        if (!cancelled) setMaps(m);
+      };
+      img.src = m.displacement;
+      return () => { cancelled = true; };
+    }, [width, height, radius, edgeSize, intensity, distortion]);
 
     useEffect(() => {
       const button = buttonRef.current;
@@ -114,12 +123,18 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
       };
     }, [buttonRef, maps, chroma]);
 
+    // Server and first client render: null (no hydration mismatch)
+    if (!maps) return null;
+
+    // NO opacity/visibility management here - the CONSUMER controls show/hide.
+    // This component always renders at full opacity so the browser's compositor
+    // keeps the backdrop-filter layer warm at all times.
     return (
       <>
         <button
           ref={buttonRef}
           className={cn("relative overflow-hidden shadow-2xl shadow-black/20 cursor-pointer", className)}
-          style={{ width, height, borderRadius: radius, border: "none", background: glassColor, visibility: maps ? "visible" : "hidden", ...style }}
+          style={{ width, height, borderRadius: radius, border: "none", background: glassColor, ...style }}
           {...props}
         >
           <div
@@ -127,7 +142,9 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
             style={{
               borderRadius: "inherit",
               backdropFilter: `url(#${filterId})`,
-              WebkitBackdropFilter: `url(#${filterId})`
+              WebkitBackdropFilter: `url(#${filterId})`,
+              willChange: "backdrop-filter",
+              transform: "translateZ(0)",
             }}
           />
           <div className="absolute inset-0 z-10 flex items-center justify-center font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.0) 100%)", borderRadius: "inherit" }}>
@@ -140,27 +157,23 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
             <filter id={filterId} x={`-${PADDING_PCT}%`} y={`-${PADDING_PCT}%`} width={`${100 + PADDING_PCT * 2}%`} height={`${100 + PADDING_PCT * 2}%`} colorInterpolationFilters="sRGB">
               <feGaussianBlur ref={blurRef} in="SourceGraphic" stdDeviation={CONFIG.initial.blur} result="blurred_bg" edgeMode="duplicate" />
 
-              {maps && (
-                <>
-                  <feImage href={maps.displacement} result="disp_map" x={`${PADDING_PCT}%`} y={`${PADDING_PCT}%`} width={`${100}%`} height={`${100}%`} preserveAspectRatio="none" />
+              <feImage href={maps.displacement} result="disp_map" x={`${PADDING_PCT}%`} y={`${PADDING_PCT}%`} width={`${100}%`} height={`${100}%`} preserveAspectRatio="none" />
 
-                  <feGaussianBlur in="disp_map" stdDeviation={smoothness} result="disp_blurred" edgeMode="duplicate" />
+              <feGaussianBlur in="disp_map" stdDeviation={smoothness} result="disp_blurred" edgeMode="duplicate" />
 
-                  <feDisplacementMap ref={displacerR} in="blurred_bg" in2="disp_blurred" scale={CONFIG.initial.displacement + chroma} xChannelSelector="R" yChannelSelector="G" result="displaced_r" />
-                  <feColorMatrix in="displaced_r" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="red_channel" />
+              <feDisplacementMap ref={displacerR} in="blurred_bg" in2="disp_blurred" scale={CONFIG.initial.displacement + chroma} xChannelSelector="R" yChannelSelector="G" result="displaced_r" />
+              <feColorMatrix in="displaced_r" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="red_channel" />
 
-                  <feDisplacementMap ref={displacerG} in="blurred_bg" in2="disp_blurred" scale={CONFIG.initial.displacement} xChannelSelector="R" yChannelSelector="G" result="displaced_g" />
-                  <feColorMatrix in="displaced_g" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="green_channel" />
+              <feDisplacementMap ref={displacerG} in="blurred_bg" in2="disp_blurred" scale={CONFIG.initial.displacement} xChannelSelector="R" yChannelSelector="G" result="displaced_g" />
+              <feColorMatrix in="displaced_g" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="green_channel" />
 
-                  <feDisplacementMap ref={displacerB} in="blurred_bg" in2="disp_blurred" scale={CONFIG.initial.displacement - chroma} xChannelSelector="R" yChannelSelector="G" result="displaced_b" />
-                  <feColorMatrix in="displaced_b" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="blue_channel" />
+              <feDisplacementMap ref={displacerB} in="blurred_bg" in2="disp_blurred" scale={CONFIG.initial.displacement - chroma} xChannelSelector="R" yChannelSelector="G" result="displaced_b" />
+              <feColorMatrix in="displaced_b" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="blue_channel" />
 
-                  <feBlend in="red_channel" in2="green_channel" mode="screen" result="rg_channels" />
-                  <feBlend in="rg_channels" in2="blue_channel" mode="screen" result="rgb_channels" />
+              <feBlend in="red_channel" in2="green_channel" mode="screen" result="rg_channels" />
+              <feBlend in="rg_channels" in2="blue_channel" mode="screen" result="rgb_channels" />
 
-                  <feColorMatrix in="rgb_channels" type="saturate" values="1.2" result="final" />
-                </>
-              )}
+              <feColorMatrix in="rgb_channels" type="saturate" values="1.2" result="final" />
             </filter>
           </defs>
         </svg>
