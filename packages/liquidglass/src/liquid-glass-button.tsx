@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useId, forwardRef } from "react";
+import React, { useRef, useEffect, useMemo, useId, forwardRef } from "react";
 import gsap from "gsap";
 import { cn } from "./utils";
 import { generateGlassMaps } from "./generate-displacement-map";
@@ -42,12 +42,10 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
 
     const filterId = "lg" + useId().replace(/:/g, "");
 
-    const [maps, setMaps] = useState<{ displacement: string } | null>(null);
-
-    useEffect(() => {
-      const result = generateGlassMaps({ width, height, radius, edgeSize, intensity, distortion });
-      setMaps(result);
-    }, [width, height, radius, edgeSize, intensity, distortion]);
+    const maps = useMemo(
+      () => generateGlassMaps({ width, height, radius, edgeSize, intensity, distortion }),
+      [width, height, radius, edgeSize, intensity, distortion]
+    );
 
     useEffect(() => {
       const button = buttonRef.current;
