@@ -43,7 +43,7 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
     const filterId = "lg" + useId().replace(/:/g, "");
 
     const maps = useMemo(
-      () => generateGlassMaps({ width, height, radius, edgeSize, intensity, distortion }),
+      () => typeof document !== "undefined" ? generateGlassMaps({ width, height, radius, edgeSize, intensity, distortion }) : null,
       [width, height, radius, edgeSize, intensity, distortion]
     );
 
@@ -126,8 +126,8 @@ export const LiquidGlassButton = forwardRef<HTMLButtonElement, LiquidGlassButton
             className="absolute inset-0 z-0"
             style={{
               borderRadius: "inherit",
-              backdropFilter: `url(#${filterId})`,
-              WebkitBackdropFilter: `url(#${filterId})`
+              backdropFilter: maps ? `url(#${filterId})` : `blur(${CONFIG.initial.blur}px)`,
+              WebkitBackdropFilter: maps ? `url(#${filterId})` : `blur(${CONFIG.initial.blur}px)`
             }}
           />
           <div className="absolute inset-0 z-10 flex items-center justify-center font-bold text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)]" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.0) 100%)", borderRadius: "inherit" }}>
